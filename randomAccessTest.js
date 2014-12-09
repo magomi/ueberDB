@@ -14,9 +14,9 @@
  * limitations under the License.
  */
  
-var opsPerSecond = 100;
+var opsPerSecond = 20;
 var keysLength = 10000;
-var seconds = 60;
+var seconds = 30;
 
 var async = require("async");
 var ueberDB = require("./CloneAndAtomicLayer");

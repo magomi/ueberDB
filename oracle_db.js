@@ -141,51 +141,53 @@ exports.database.prototype.remove = function (key, callback)
   this.db.execute("DELETE FROM store WHERE key = :1", [key], callback);
 }
 
+
 exports.database.prototype.doBulk = function (bulk, callback)
-{ 
-  var _this = this;
-  
-  var statements = new Array();
-
-  var updateSQL = "CALL PKG_UBERDB.PRC_INSERT_OR_UPDATE(:1, :2)";
-  var removeSQL = "DELETE FROM store WHERE key = :1";
-  
-  for(var i in bulk)
-  { 
-    console.log("bulk: [" + bulk[i].type + ":" + bulk[i].key + ":" + bulk[i].value + "]");
-    if(bulk[i].type == "set")
+{
+    var _this = this;
+    var updateSQL = "CALL PKG_UBERDB.PRC_INSERT_OR_UPDATE(:1, :2)";
+    var removeSQL = "DELETE FROM store WHERE key = :1";
+    var updateVals = new Array();
+    var removeVals = new Array();
+    
+    for(var i in bulk)
     {
-        statements.push(function(cb) {
-            _this.db.execute(updateSQL, [bulk[i].key, bulk[i].value], function(err) {
-                if (err) {
-                    cb(err);
-                } else {
-                    cb();
-                }
-            }); 
-        });
-      }
-    else if(bulk[i].type == "remove")
-    {
-        statements.push(function(cb) {
-            _this.db.execute(removeSQL, [bulk[i].key], function(err) {
-                if (err) {
-                    cb(err);
-                } else {
-                    cb();
-                }
-            });
-        });
+        if(bulk[i].type == "set") {
+            updateVals.push([bulk[i].key, bulk[i].value]);
+        } else if(bulk[i].type == "remove") {
+            removeVals.push(bulk[i].key);
+        }
     }
-  }
 
-  async.series(statements, function(err, results) {
-      if (err) {
-          callback(err);
-      } else {
-          callback();
-      }
-  });
+    async.parallel([
+            function(cb) {
+                if (!updateVals.length < 1) {
+                    for (var v in updateVals) {
+                        _this.db.execute(updateSQL, updateVals[v], function(err) {
+                            if (err) {
+                                cb(err);
+                            } else {
+                                cb();
+                            }
+                        });
+                    }
+                }
+            },
+            function(cb) {
+                if (!removeVals.length < 1) {
+                    for (var v in removeVals) {
+                        _this.db.execute(removeSQL, [removeVals[v]], function(err) {
+                            if (err) {
+                                cb(err);
+                            } else {
+                                cb();
+                            }
+                        });
+                    }
+                }
+            }
+    ], callback);
+    callback();
 }
 
 exports.database.prototype.close = function(callback)
